@@ -1,6 +1,7 @@
 # Programa de máquina de venta de productos
 
-from tabulate import tabulate
+from tabulate import tabulate #pip install tabulate
+# https://pypi.org/project/tabulate/
 
 productos = {
     1: {"nombre": "Agua Mineral", "precio": 800, "cantidad": 20},
@@ -21,13 +22,13 @@ productos = {
 }
 
 
-# Función que muestra los productos
+# Función que muestra los productos, usa tabulate para formato
 def mostrar_productos():
     filas = [
         (pid, info["nombre"], info["precio"], info["cantidad"])
         for pid, info in productos.items()
     ]
-    print(tabulate(filas, headers=["ID", "Nombre", "Precio (CLP)", "Cantidad Disponible"], tablefmt="pretty")) # No podía hacer funcionar ID
+    print(tabulate(filas, headers=["ID", "Nombre", "Precio (CLP)", "Cantidad Disponible"], tablefmt="pretty"))
     print("\n")
 
 
@@ -62,7 +63,7 @@ def seleccionar_productos():
 def manejar_compra():
     nombre_cliente = input("Para comenzar, por favor ingrese su nombre: ")
     total_acumulado = 0
-    productos_comprados = []
+    carrito = {} # carrito por id producto, no lista, no duplicados (correccion bug v1)
 
     while True:
         mostrar_productos()
@@ -74,29 +75,43 @@ def manejar_compra():
         producto = productos[id_producto]
         subtotal = producto['precio'] * cantidad
         total_acumulado += subtotal
-        productos_comprados.append((producto['nombre'], cantidad, subtotal))
 
-        # Actualización de cantidad disponible
-        productos[id_producto]['cantidad'] -= cantidad 
-        
-        # bug: solo descuenta último producto comprado, no todos
+        # Acumular en carrito por ID (correccion bug v1: evita duplicados y mantiene cantidades)
+        if id_producto in carrito:
+            carrito[id_producto]['cantidad'] += cantidad
+            carrito[id_producto]['subtotal'] += subtotal
+        else:
+            carrito[id_producto] = {
+                "nombre": producto['nombre'],
+                "cantidad": cantidad,
+                "subtotal": subtotal
+            }
+
+        # Actualización de cantidad disponible al momento de la selección
+        productos[id_producto]['cantidad'] -= cantidad
 
         seguir_comprando = input("¿Desea continuar comprando? (s/n): ").strip().lower()
         if seguir_comprando != 's':
             break
 
     if total_acumulado > 0:
-        print("\nResumen de su compra:")
+        print("_" * 20)
+        print("\nResumen de su compra:\n")
         print(f"Cliente: {nombre_cliente}")
+        # carrito a lista para tabulate
+        productos_comprados = [
+            (info['nombre'], info['cantidad'], info['subtotal'])
+            for info in carrito.values()
+        ]
         print(tabulate(productos_comprados, headers=["Producto", "Cantidad", "Valor Acumulado"], tablefmt="pretty"))
-        total_cantidad = sum(cantidad for _, cantidad, _ in productos_comprados)
+        total_cantidad = sum(info['cantidad'] for info in carrito.values())
         print(f"Cantidad total de productos comprados: {total_cantidad}")
         print(f"Monto Final: {total_acumulado} CLP")
         
-        # Selección de método de pago
+        # Selección de método pago
         metodo_pago = input("Seleccione método de pago (1: Débito, 2: Crédito): ").strip()
         if metodo_pago == '2':
-            descuento = total_acumulado * 0.03 # 3% de descuento
+            descuento = total_acumulado * 0.03 # 3% de descuento crédito
             monto_final_descuento = total_acumulado - descuento
             print(f"Monto final con descuento (3% por pago a crédito): {monto_final_descuento:.2f} CLP")
         else:
@@ -108,4 +123,3 @@ def manejar_compra():
 if __name__ == "__main__":
     while True:
         manejar_compra()
-
